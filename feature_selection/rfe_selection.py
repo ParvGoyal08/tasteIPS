@@ -28,13 +28,28 @@ def main():
     parser = parse_common_args("RFE feature selection + baseline model suite")
     parser.add_argument("--feature-fraction", type=float, default=0.4)
     parser.add_argument("--min-features", type=int, default=10)
+    parser.add_argument(
+        "--save-dir",
+        type=str,
+        default=None,
+        help="Directory to save results (e.g., Google Drive path)",
+    )
     args = parser.parse_args()
 
-    out_path = args.output or os.path.join(os.path.dirname(__file__), "rfe_selection_results.csv")
+    # Decide output directory
+    save_dir = args.save_dir or os.path.dirname(__file__)
+    os.makedirs(save_dir, exist_ok=True)
+
+    out_path = os.path.join(save_dir, "rfe_selection_results.csv")
 
     all_rows = []
-    for emb_name in EMBEDDINGS:
+
+    for emb_idx, emb_name in enumerate(EMBEDDINGS, 1):
+        print(f"\n🚀 [{emb_idx}/{len(EMBEDDINGS)}] Processing embedding: {emb_name}", flush=True)
+
         x, y, feature_names = load_embedding(args.emb_dir, emb_name)
+
+        print("   🔍 Running RFE feature selection...", flush=True)
         mask = select_features_rfe(
             x,
             y,
@@ -42,8 +57,11 @@ def main():
             min_features=args.min_features,
             seed=args.seed,
         )
-        x_selected = x[:, mask]
 
+        x_selected = x[:, mask]
+        print(f"   ✅ Selected {int(mask.sum())} features", flush=True)
+
+        print("   🤖 Running model suite...", flush=True)
         rows = run_model_suite(
             x_selected,
             y,
@@ -54,13 +72,19 @@ def main():
         )
 
         selected_names = [feature_names[i] for i, keep in enumerate(mask) if keep]
+
         for r in rows:
             r["Selector"] = "RFE"
             r["Selected_Feature_Names"] = "|".join(selected_names)
+
         all_rows.extend(rows)
 
-    pd.DataFrame(all_rows).to_csv(out_path, index=False)
-    print(f"Saved results to {out_path}")
+        # ✅ SAVE AFTER EACH EMBEDDING
+        pd.DataFrame(all_rows).to_csv(out_path, index=False)
+
+        print(f"   💾 Saved progress after {emb_name} → {out_path}", flush=True)
+
+    print(f"\n✅ All done. Final results saved to {out_path}")
 
 
 if __name__ == "__main__":

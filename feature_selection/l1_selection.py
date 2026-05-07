@@ -15,7 +15,6 @@ def select_features_l1(x_train, y_train, c=0.1, min_features=10, seed=42):
         max_iter=4000,
         random_state=seed,
         n_jobs=-1,
-        multi_class="ovr",
     )
     model.fit(x_train, y_train)
 
@@ -37,14 +36,30 @@ def main():
     parser.add_argument("--min-features", type=int, default=10)
     args = parser.parse_args()
 
-    out_path = args.output or os.path.join(os.path.dirname(__file__), "l1_selection_results.csv")
+    out_path = args.output or os.path.join(
+        os.path.dirname(__file__),
+        "l1_selection_results.csv"
+    )
 
     all_rows = []
-    for emb_name in EMBEDDINGS:
-        x, y, feature_names = load_embedding(args.emb_dir, emb_name)
-        mask = select_features_l1(x, y, c=args.c, min_features=args.min_features, seed=args.seed)
-        x_selected = x[:, mask]
 
+    for emb_idx, emb_name in enumerate(EMBEDDINGS, 1):
+        print(f"\n🚀 [{emb_idx}/{len(EMBEDDINGS)}] Processing embedding: {emb_name}", flush=True)
+
+        x, y, feature_names = load_embedding(args.emb_dir, emb_name)
+
+        print("   🔍 Running L1 feature selection...", flush=True)
+        mask = select_features_l1(
+            x, y,
+            c=args.c,
+            min_features=args.min_features,
+            seed=args.seed
+        )
+
+        x_selected = x[:, mask]
+        print(f"   ✅ Selected {int(mask.sum())} features", flush=True)
+
+        print("   🤖 Running model suite...", flush=True)
         rows = run_model_suite(
             x_selected,
             y,
@@ -54,14 +69,22 @@ def main():
             test_size=args.test_size,
         )
 
-        selected_names = [feature_names[i] for i, keep in enumerate(mask) if keep]
+        selected_names = [
+            feature_names[i] for i, keep in enumerate(mask) if keep
+        ]
+
         for r in rows:
             r["Selector"] = "L1"
             r["Selected_Feature_Names"] = "|".join(selected_names)
+
         all_rows.extend(rows)
 
-    pd.DataFrame(all_rows).to_csv(out_path, index=False)
-    print(f"Saved results to {out_path}")
+        # ✅ SAVE AFTER EACH EMBEDDING
+        pd.DataFrame(all_rows).to_csv(out_path, index=False)
+
+        print(f"   💾 Saved progress after {emb_name} → {out_path}", flush=True)
+
+    print(f"\n✅ All done. Final results saved to {out_path}")
 
 
 if __name__ == "__main__":

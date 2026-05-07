@@ -36,11 +36,7 @@ LABEL_COLS = ["Sweet", "Bitter", "Umami", "Sour", "Undefined"]
 NUM_CLASSES = len(LABEL_COLS)
 
 EMBEDDINGS = {
-    "RDKit": "rdkit_descriptors.csv",
-    "Morgan FP": "morgan_fps.csv",
-    "MACCS": "maccs.csv",
-    "Mol2Vec": "mol2vec.csv",
-    "ChemBERTa": "chemberta.csv",
+    "Categorical": "categorical_embeddings_train.csv",
 }
 
 
@@ -335,7 +331,7 @@ def parse_common_args(description: str):
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--emb-dir",
-        default=os.path.join(os.path.dirname(__file__), "..", "final_embeddings"),
+        default=os.path.join(os.path.dirname(__file__), "..", "combined_embeddings"),
         help="Directory containing embedding CSV files.",
     )
     parser.add_argument("--seed", type=int, default=42)
